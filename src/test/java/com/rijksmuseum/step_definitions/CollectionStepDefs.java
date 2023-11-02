@@ -9,6 +9,7 @@ import com.rijksmuseum.utilities.ConfigurationReader;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import static io.restassured.RestAssured.given;
 
@@ -74,5 +75,75 @@ public class CollectionStepDefs {
         }
     }
 
+    @Then("the {string} should not be null")
+    public void property_should_not_be_null(String property) {
+        for (Map<String, ?> artObject : artObjects) {
+            Object propertyValue = artObject.get(property);
+            Assert.assertNotNull(propertyValue);
+        }
+    }
+
+    @Then("the {string} should match the URL format")
+    public void property_should_match_url_format(String property) {
+        String urlRegex = "^(http|https)://[a-zA-Z0-9-.]+\\.[a-zA-Z]{2,}(/\\S*)?$";
+        Pattern pattern = Pattern.compile(urlRegex);
+
+        for (Map<String, ?> artObject : artObjects) {
+            Object propertyValue = artObject.get(property);
+
+            // Ensure that the property value is a string
+            if (propertyValue instanceof String) {
+                String url = (String) propertyValue;
+                Assert.assertTrue("URL format is invalid for property: " + property, pattern.matcher(url).matches());
+            } else {
+                Assert.fail("Property value is not a string: " + property);
+            }
+        }
+    }
+
+    @Then("all {string} should not be null")
+    public void all_properties_should_not_be_null(String property) {
+        for (Map<String, ?> artObject : artObjects) {
+            Object propertyValue = artObject.get(property);
+            Assert.assertNotNull(propertyValue);
+        }
+    }
+
+    @Then("the count should be equal to the count of art objects")
+    public void the_count_should_be_equal_to_art_object_count() {
+        int expectedCount = response.jsonPath().get("count");
+        Assert.assertEquals(expectedCount, artObjects.size());
+    }
+
+    @Then("the count of art objects with {string} as true should be equal to {string}")
+    public void count_of_art_objects_with_has_image_should_be_equal_to_count(String hasImageProperty, String facetCountProperty) {
+        int expectedCount = response.jsonPath().get("countFacets." + facetCountProperty);
+        long actualCount = artObjects.stream()
+                .filter(artObject -> (boolean) artObject.get(hasImageProperty))
+                .count();
+        Assert.assertEquals(expectedCount, actualCount);
+    }
+
+    @Then("the {string} should contain all parts except {string}")
+    public void property_should_contain_all_parts_except(String property, String partToExclude) {
+        for (Map<String, ?> artObject : artObjects) {
+            Object propertyValue = artObject.get(property);
+
+            if (propertyValue instanceof String) {
+                String objectNumber = (String) propertyValue;
+                // Split the objectNumber using "-" as a delimiter
+                String[] parts = objectNumber.split("-");
+
+                // Check that the parts do not contain the partToExclude
+                for (String part : parts) {
+                    if (part.equals(partToExclude)) {
+                        Assert.fail("The property " + property + " contains the part to exclude: " + partToExclude);
+                    }
+                }
+            } else {
+                Assert.fail("Property value is not a string: " + property);
+            }
+        }
+    }
 
 }
